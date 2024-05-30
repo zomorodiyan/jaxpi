@@ -45,13 +45,13 @@ def get_config():
     # Training
     config.training = training = ml_collections.ConfigDict()
     training.max_steps = 200000
-    training.num_time_windows = 10
+    training.num_time_windows = 1
 
-    training.inflow_batch_size = 2048
-    training.outflow_batch_size = 2048
-    training.noslip_batch_size = 2048
-    training.ic_batch_size = 2048
-    training.res_batch_size = 4096
+    training.inflow_batch_size = 512
+    training.outflow_batch_size = 512
+    training.noslip_batch_size = 512
+    training.ic_batch_size = 512
+    training.res_batch_size = 1024
 
     # Weighting
     config.weighting = weighting = ml_collections.ConfigDict()
