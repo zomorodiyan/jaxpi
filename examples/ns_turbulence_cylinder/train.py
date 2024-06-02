@@ -29,7 +29,7 @@ from utils import get_dataset, get_fine_mesh, parabolic_inflow
 
 
 class ICSampler(SpaceSampler):
-    def __init__(self, u, v, p, coords, batch_size, rng_key=random.PRNGKey(1234)):
+    def __init__(self, u, v, p, k, omega, coords, batch_size, rng_key=random.PRNGKey(1234)):
         super().__init__(coords, batch_size, rng_key)
 
         self.u = u
@@ -183,8 +183,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         fine_coords_near_cyl,
     ) = get_fine_mesh()  # finer mesh for evaluating PDE residuals
 
-    #noslip_coords = jnp.vstack((wall_coords, cyl_coords)) #old
-    noslip_coords = cyl_coords #me
+    noslip_coords = cyl_coords
 
     # T = 1.0  # final time of simulation
     # T = 100.0  # final time of simulation #me
@@ -224,7 +223,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
     # Temporal domain of each time window
     t0 = 0.0
-    t1 = 1.0
+    t1 = 1.0 #what
 
     temporal_dom = jnp.array([t0, t1 * (1 + 0.05)])
 
@@ -297,8 +296,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
             "ic": ic_sampler,
             "inflow": inflow_sampler,
             "outflow": outflow_sampler,
-            "symmetry": symmetry_sampler,
             "noslip": noslip_sampler,
+            "symmetry": symmetry_sampler,
             "res": res_sampler,
         }
 
