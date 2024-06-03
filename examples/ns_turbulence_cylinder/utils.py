@@ -9,17 +9,18 @@ import jax.numpy as jnp
 
 def get_dataset():
     data = jnp.load("data/ns_unsteady.npy", allow_pickle=True).item()
-    u_ref = jnp.array(data["u"])
-    v_ref = jnp.array(data["v"])
-    p_ref = jnp.array(data["p"])
-    k_ref = jnp.array(data["k"]) #me
-    omega_ref = jnp.array(data["w"]) #me
-    conc_ref = jnp.array(data["omega"]) #me
+    print('u_ref: ', type(data["u"].astype(float)), data["u"].shape)
+    u_ref = jnp.array(data["u"].astype(float))
+    v_ref = jnp.array(data["v"].astype(float))
+    p_ref = jnp.array(data["p"].astype(float))
+    k_ref = jnp.array(data["k"].astype(float)) #me
+    omega_ref = jnp.array(data["omega"].astype(float)) #me
+    #conc_ref = jnp.array(data["conc"]) #me
     t = jnp.array(data["t"])
     coords = jnp.array(data["coords"])
     inflow_coords = jnp.array(data["inflow_coords"])
     outflow_coords = jnp.array(data["outflow_coords"])
-    symm_coords = jnp.array(data["symm_coords"]) #me
+    symmetry_coords = jnp.array(data["symmetry_coords"]) #me
     cylinder_coords = jnp.array(data["cylinder_coords"])
     nu = jnp.array(data["nu"])
 
@@ -29,11 +30,11 @@ def get_dataset():
         p_ref,
         k_ref, #me
         omega_ref, #me
-        conc_ref, #me
+        #conc_ref, #me
         coords,
         inflow_coords,
         outflow_coords,
-        symm_coords, #me
+        symmetry_coords, #me
         cylinder_coords,
         nu,
     )
