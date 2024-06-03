@@ -25,7 +25,7 @@ from jaxpi.samplers import BaseSampler, SpaceSampler, TimeSpaceSampler
 from jaxpi.logging import Logger
 from jaxpi.utils import save_checkpoint
 
-from utils import get_dataset, get_fine_mesh, parabolic_inflow
+from utils import get_dataset, get_fine_mesh#, parabolic_inflow
 
 
 class ICSampler(SpaceSampler):
@@ -52,7 +52,8 @@ class ICSampler(SpaceSampler):
         omega_batch = self.omega[idx]
 
         batch = (coords_batch, u_batch, v_batch, p_batch, k_batch, omega_batch)
-:       return batch
+
+        return batch
 
 
 class ResSampler(BaseSampler):
@@ -212,8 +213,8 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         u_ref = u_ref / U_star
         v_ref = v_ref / U_star
         p_ref = p_ref / U_star**2
-        k_ref = p_ref / U_star**2
-        omega_ref = p_ref * L_star / U_star
+        k_ref = k_ref / U_star**2
+        omega_ref = omega_ref * L_star / U_star
 
     else:
         U_star = 1.0
@@ -223,13 +224,13 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
     # Temporal domain of each time window
     t0 = 0.0
-    t1 = 1.0 #what
+    t1 = 100.0 #what is it?
 
     temporal_dom = jnp.array([t0, t1 * (1 + 0.05)])
 
     # Inflow boundary conditions
-    U_max = 1.5  # maximum velocity
-    inflow_fn = lambda y: parabolic_inflow(y * L_star, U_max)
+    U_constant = 9.0 #m/s
+    inflow_fn = lambda y:(U_constant,0)
 
     # Set initial condition
     # Use the last time step of a coarse numerical solution as the initial condition
@@ -237,7 +238,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
     v0 = v_ref[-1, :]
     p0 = p_ref[-1, :]
     k0 = k_ref[-1, :]
-    omega0 = w_ref[-1, :]
+    omega0 = omega_ref[-1, :]
 
     for idx in range(config.training.num_time_windows):
         logging.info("Training time window {}".format(idx + 1))
@@ -246,7 +247,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         keys = random.split(random.PRNGKey(0), 5)
         ic_sampler = iter(
             ICSampler(
-                u0, v0, p0, coords, config.training.ic_batch_size, rng_key=keys[0]
+                u0, v0, p0, k0, omega0, coords, config.training.ic_batch_size, rng_key=keys[0]
             )
         )
         inflow_sampler = iter(
