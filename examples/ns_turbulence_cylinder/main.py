@@ -1,5 +1,7 @@
 # DETERMINISTIC
 import os
+os.environ['JAX_DEBUG_NANS'] = '1'
+os.environ['JAX_DEBUG_INFS'] = '1'
 
 # os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_reductions --xla_gpu_autotune_level=0"
 # os.environ['TF_CUDNN_DETERMINISTIC'] = '1'

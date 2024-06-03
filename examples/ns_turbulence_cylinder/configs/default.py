@@ -56,8 +56,8 @@ def get_config():
     training.outflow_batch_size = 512
     training.noslip_batch_size = 512
     training.ic_batch_size = 512
-    training.symmetry_batch_size = 512
-    training.res_batch_size = 1024 #me
+    training.symmetry_batch_size = 512 #me
+    training.res_batch_size = 1024
 
     # Weighting
     config.weighting = weighting = ml_collections.ConfigDict()
@@ -66,15 +66,21 @@ def get_config():
         "u_ic": 1.0,
         "v_ic": 1.0,
         "p_ic": 1.0,
+        "k_ic": 1.0,
+        "omega_ic": 1.0,
         "u_in": 1.0,
         "v_in": 1.0,
         "u_out": 1.0,
         "v_out": 1.0,
         "u_noslip": 1.0,
         "v_noslip": 1.0,
-        "ru": 1.0,
-        "rv": 1.0,
-        "rc": 1.0,
+        "u_symmetry": 1.0,
+        "v_symmetry": 1.0,
+        "continuity": 1.0,
+        "x_momentum": 1.0,
+        "y_momentum": 1.0,
+        "k_transport": 1.0,
+        "omega_transport": 1.0,
     }
 
     weighting.momentum = 0.9

@@ -12,6 +12,23 @@ from jaxpi.models import ForwardBVP, ForwardIVP
 from jaxpi.utils import ntk_fn
 from jaxpi.evaluator import BaseEvaluator
 
+def check_for_nans(tensor, name):
+    has_nan = jnp.isnan(tensor).any()
+    has_inf = jnp.isinf(tensor).any()
+
+    def print_nan_info(x):
+        jax.debug.print(f"Nan values found in {name}")
+        return x
+
+    def print_inf_info(x):
+        jax.debug.print(f"Inf values found in {name}")
+        return x
+
+    # Using lax.cond to conditionally print the message if nan or inf is found
+    has_nan = jax.lax.cond(has_nan, print_nan_info, lambda x: x, has_nan)
+    has_inf = jax.lax.cond(has_inf, print_inf_info, lambda x: x, has_inf)
+
+    return has_nan, has_inf
 
 class NavierStokes2D(ForwardIVP):
     def __init__(self, config, inflow_fn, temporal_dom, coords, Re):
@@ -94,9 +111,13 @@ class NavierStokes2D(ForwardIVP):
         u, v, p, k, omega = self.neural_net(params, t, x, y)
 
         u_t = grad(self.u_net, argnums=1)(params, t, x, y)
+        check_for_nans(u_t, "u_t")
         v_t = grad(self.v_net, argnums=1)(params, t, x, y)
+        check_for_nans(v_t, "v_t")
         k_t = grad(self.k_net, argnums=1)(params, t, x, y)
+        check_for_nans(k_t, "k_t")
         omega_t = grad(self.omega_net, argnums=1)(params, t, x, y)
+        check_for_nans(omega_t, "omega_t")
 
         u_x = grad(self.u_net, argnums=2)(params, t, x, y)
         v_x = grad(self.v_net, argnums=2)(params, t, x, y)
@@ -178,8 +199,8 @@ class NavierStokes2D(ForwardIVP):
         G_omega = alpha / mu_t * G_k_tilde
         Y_omega = beta * omega ** 2
         D_omega = 2 * (1 - F1) * (sigma_omega2 / omega) * (k_x * omega_x + k_y * omega_y)
-
         continuity = u_x + v_y
+
         def x_mom_grad1(params, t, x, y):
           return (1/Re+mu_t)*(4/3*u_x-2/3*v_y)
         def x_mom_grad2(params, t, x, y):
@@ -366,21 +387,6 @@ class NavierStokes2D(ForwardIVP):
             outflow_batch[:, 2],
         )
 
-        u_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
-            self.u_symmetry_net,
-            params,
-            outflow_batch[:, 0],
-            outflow_batch[:, 1],
-            outflow_batch[:, 2],
-        )
-        v_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
-            self.v_symmetry_net,
-            params,
-            outflow_batch[:, 0],
-            outflow_batch[:, 1],
-            outflow_batch[:, 2],
-        )
-
         u_noslip_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
             self.u_net,
             params,
@@ -394,6 +400,21 @@ class NavierStokes2D(ForwardIVP):
             noslip_batch[:, 0],
             noslip_batch[:, 1],
             noslip_batch[:, 2],
+        )
+
+        u_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.u_symmetry_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
+        )
+        v_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.v_symmetry_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
         )
 
         # Consider the effect of causal weights
@@ -467,9 +488,11 @@ class NavierStokes2D(ForwardIVP):
             "v_noslip": v_noslip_ntk,
             "u_symmetry": u_symmetry_ntk,
             "v_symmetry": v_symmetry_ntk,
-            "ru": ru_ntk,
-            "rv": rv_ntk,
-            "rc": rc_ntk,
+            "continuity": continuity_ntk,
+            "x_momentum": x_momentum_ntk,
+            "y_momentum": y_momentum_ntk,
+            "k_transport": k_transport_ntk,
+            "omega_transport": omega_transport_ntk,
         }
 
         return ntk_dict
@@ -563,8 +586,8 @@ class NavierStokes2D(ForwardIVP):
             "u_ic": u_ic_loss,
             "v_ic": v_ic_loss,
             "p_ic": p_ic_loss,
-            "k_ic": p_ic_loss,
-            "omega_ic": p_ic_loss,
+            "k_ic": k_ic_loss,
+            "omega_ic": omega_ic_loss,
             "u_in": u_in_loss,
             "v_in": v_in_loss,
             "u_out": u_out_loss,
