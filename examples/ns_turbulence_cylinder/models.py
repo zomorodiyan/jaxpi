@@ -61,7 +61,7 @@ class NavierStokes2D(ForwardIVP):
         p = outputs[2]
         k = outputs[2]
         omega = outputs[2]
-        return u, v, p
+        return u, v, p, k, omega
 
     def u_net(self, params, t, x, y):
         u, _, _, _, _ = self.neural_net(params, t, x, y)
@@ -81,7 +81,7 @@ class NavierStokes2D(ForwardIVP):
 
     def omega_net(self, params, t, x, y):
         _, _, _, _, omega = self.neural_net(params, t, x, y)
-        return k
+        return omega
 
     def w_net(self, params, t, x, y):
         u, v, _ = self.neural_net(params, t, x, y)
@@ -120,6 +120,7 @@ class NavierStokes2D(ForwardIVP):
         a1 = 0.31
         kappa = 0.41
         alpha_0 = 1/9
+        alpha_star_infinity= 1.0
         beta_i1 = 0.075
         beta_i2 = 0.0828
         beta_star_infinity = 0.09
@@ -136,59 +137,79 @@ class NavierStokes2D(ForwardIVP):
         f_star_beta = 1.0
         #physical constants
         rho = 1.225  # kg/m^3
-        mu = 1.81e-5  # kg/(m*s)
+        mu = 1.7894e-5  # kg/(m*s)
         gamma = 1.4
         R = 287  # m^2/(s^2*K)
         T = 297.15  # K
+        U_star = 9.0 #[m/s] velocity
+        L_star = 80.0 #[m] diameter
+        Re = rho * U_star * L_star / mu
         # function to calcualte y_hat which is distance_from_wall/L_star
-        y_hat = (x**2+y**2)**0.5-1
-        alpha_star_0 = beta_i / 3
-        alpha = (alpha_infinity / alpha_star) * ((alpha_0 + Re_t / R_omega) / (1 + Re_t / R_omega))
-        alpha_infinity = F1 * alpha_infinity_1 + (1 - F1) * alpha_infinity_2
-        alpha_infinity_1 = beta_i1 / beta_star_infinity - kappa**2 / (sigma_omega1 * sqrt(beta_star_infinity))
-        alpha_infinity_2 = beta_i2 / beta_star_infinity - kappa**2 / (sigma_omega2 * sqrt(beta_star_infinity))
-        beta_star = beta_star_i * (1 + xi_star * F_Mt)
-        beta_star_i = beta_star_infinity * ((4/15 + (Re_t / R_beta)**4) / (1 + (Re_t / R_beta)**4))
-        beta = beta_i * (1 - beta_star_i / beta_i * xi_star * F_Mt)
+        y_hat = jnp.sqrt(x**2+y**2)-40/L_star #non-dim(distance) - radius/L_star
+        D_omega_plus = jnp.maximum((2 / (sigma_omega2 * omega)) * (k_x * omega_x + k_y * omega_y), 10**-10)
+        phi_1 = jnp.minimum(jnp.maximum(jnp.sqrt(k) / (0.09 * omega * y_hat), 500 / (Re * y_hat**2 * omega)),\
+                    4 * k / (sigma_omega2 * D_omega_plus * y_hat**2))
+        phi_2 = jnp.maximum( (2 * jnp.sqrt(k)) / (0.09 * omega * y_hat), 500 / (Re * y_hat**2 * omega))
+        F1 = jnp.tanh(phi_1**4)
+        F2 = jnp.tanh(phi_2)
         beta_i = F1 * beta_i1 + (1 - F1) * beta_i2
-        F_Mt = lambda M_t: 0 if M_t <= M_t0 else M_t**2 - M_t0**2
-        M_t = sqrt(2 * k / (gamma * R * T))
+        alpha_star_0 = beta_i / 3
+        alpha_infinity_1 = beta_i1 / beta_star_infinity - kappa**2\
+            / (sigma_omega1 * jnp.sqrt(beta_star_infinity))
+        alpha_infinity_2 = beta_i2 / beta_star_infinity - kappa**2\
+            / (sigma_omega2 * jnp.sqrt(beta_star_infinity))
+        alpha_infinity = F1 * alpha_infinity_1 + (1 - F1) * alpha_infinity_2
+        Re_t = k / (mu * omega)
+        alpha_star = alpha_star_infinity * (alpha_star_0 + Re_t / R_k) / (1 + Re_t / R_k)
+        alpha = (alpha_infinity / alpha_star) * ((alpha_0 + Re_t / R_omega) / (1 + Re_t / R_omega))
+        beta_star_i = beta_star_infinity * ((4/15 + (Re_t / R_beta)**4) / (1 + (Re_t / R_beta)**4))
+        M_t = U_star*jnp.sqrt(2 * k / (gamma * R * T))
+        F_Mt = jnp.where(M_t <= M_t0, 0, M_t**2 - M_t0**2)
+        beta_star = beta_star_i * (1 + xi_star * F_Mt)
+        beta = beta_i * (1 - beta_star_i / beta_i * xi_star * F_Mt)
         sigma_k = 1 / (F1 / sigma_k1 + (1 - F1) / sigma_k2)
         sigma_omega = 1 / (F1 / sigma_omega1 + (1 - F1) / sigma_omega2)
-        alpha_star = alpha_star_infinity * (alpha_star_1 + Re_t / R_k) / (1 + Re_t / R_k)
-        Re_t = k / (mu * omega)
-        F1 = tanh(phi1**4)
-        F2 = tanh(phi2)
-        phi_1 = min(max(k**0.5 / (0.09 * omega * y_hat), 500 / (Re * y_hat**2 * omega)),
-                    4 * k / (sigma_omega2 * D_omega_plus * y_hat**2))
-        phi_2 = max( (2 * k**0.5) / (0.09 * omega * y_hat), 500 / (Re * y_hat**2 * omega))
-        S = sqrt(2 * ((u_x)**2 + (v_y)**2 + (1/2) * (u_y + v_x)**2))
-        D_omega_plus = max((2 / (sigma_omega2 * omega)) * (k_x * omega_x + k_y * omega_y), 10**-10)
+        S = jnp.sqrt(2 * ((u_x)**2 + (v_y)**2 + (1/2) * (u_y + v_x)**2))
 
+        mu_t = k / omega * (1 / jnp.maximum(1 / alpha_star, S * F2 / (a1 * omega)))
         G_k = mu_t * S**2
         Y_k = beta_star * k * omega
-        G_k_tilde = Min(G_k, 10 * beta_star * k * omega)
-        G_omega = alpha / nu_t * G_k_tilde
-        Y_k = beta_star * k * omega
+        G_k_tilde = jnp.minimum(G_k, 10 * beta_star * k * omega)
+        G_omega = alpha / mu_t * G_k_tilde
+        Y_omega = beta * omega ** 2
         D_omega = 2 * (1 - F1) * (sigma_omega2 / omega) * (k_x * omega_x + k_y * omega_y)
-        mu_t = k / omega * (1 / max(1 / alpha_star, S * F2 / (a1 * omega)))
 
         continuity = u_x + v_y
-        x_momentum = u_t + 2*u*u_x + u*v_y + v*u_y + p_x
-          - grad((1/Re+mu_t)*(4/3*u_x-2/3*v_y), argnums=2)(params, t, x, y)
-          - grad((1/Re+mu_t)*(u_y+v_x), argnums=3)(params, t, x, y)
-        y_momentum = v_t + v*u_x + u*v_x + 2*v*v_y + p_y
-          - grad((1/Re+mu_t)*(4/3*v_y-2/3*u_x)), argnums=3)(params, t, x, y)
-          - grad((1/Re+mu_t)*(u_y+v_x), argnums=2)(params, t, x, y)
-        k_transport = k_t + u*k_x + v*k_y
-          - grad((1/Re + mu_t/sigma_k) * k_x, argnums=2)(params, t, x, y)
-          - grad((1/Re + mu_t/sigma_k) * k_y, argnums=3)(params, t, x, y)
+        def x_mom_grad1(params, t, x, y):
+          return (1/Re+mu_t)*(4/3*u_x-2/3*v_y)
+        def x_mom_grad2(params, t, x, y):
+          return (1/Re+mu_t)*(u_y+v_x)
+        x_momentum = u_t + 2*u*u_x + u*v_y + v*u_y + p_x \
+          - grad(x_mom_grad1, argnums=2)(params, t, x, y) \
+          - grad(x_mom_grad2, argnums=3)(params, t, x, y)
+        def y_mom_grad1(params, t, x, y):
+          return (1/Re+mu_t)*(4/3*v_y-2/3*u_x)
+        def y_mom_grad2(params, t, x, y):
+          return (1/Re+mu_t)*(u_y+v_x)
+        y_momentum = v_t + v*u_x + u*v_x + 2*v*v_y + p_y \
+          - grad(y_mom_grad1, argnums=3)(params, t, x, y) \
+          - grad(y_mom_grad2, argnums=2)(params, t, x, y)
+        def k_transport_grad1(params, t, x, y):
+          return (1/Re + mu_t/sigma_k) * k_x
+        def k_transport_grad2(params, t, x, y):
+          return (1/Re + mu_t/sigma_k) * k_y
+        k_transport = k_t + u*k_x + v*k_y \
+          - grad(k_transport_grad1, argnums=2)(params, t, x, y) \
+          - grad(k_transport_grad2, argnums=3)(params, t, x, y) \
           - G_k + Y_k
-        omega_transport = omega_t + u*omega_x + v*omega_y
-          - grad((1/Re + mu_t/sigma_omega) * omega_x, argnums=2)(params, t, x, y)
-          - grad((1/Re + mu_t/sigma_omega) * omega_y, argnums=3)(params, t, x, y)
+        def omega_transport_grad1(params, t, x, y):
+          return (1/Re + mu_t/sigma_omega) * omega_x
+        def omega_transport_grad2(params, t, x, y):
+          return (1/Re + mu_t/sigma_omega) * omega_y
+        omega_transport = omega_t + u*omega_x + v*omega_y \
+          - grad(omega_transport_grad1, argnums=2)(params, t, x, y) \
+          - grad(omega_transport_grad2, argnums=3)(params, t, x, y) \
           - G_omega + Y_omega - D_omega
-
 
         # outflow boundary residual
         u_out = u_x / self.Re - p
@@ -197,6 +218,7 @@ class NavierStokes2D(ForwardIVP):
         # symmetry boundary residual
         u_out = u_x / self.Re - p
         v_out = v_x
+        # wall function for k and omega on walls is available (add feature)
 
         # symmetry boundary residual
         u_symmetry = u_y
@@ -204,7 +226,7 @@ class NavierStokes2D(ForwardIVP):
         #k_symmetry = k_y
         #omega_symmetry = omega_y
 
-        return continuity, x_momentum, y_momentum, k_transport, omega_transport,
+        return continuity, x_momentum, y_momentum, k_transport, omega_transport,\
           u_out, v_out, u_symmetry, v_symmetry
 
     def continuity_net(self, params, t, x, y):
@@ -256,10 +278,9 @@ class NavierStokes2D(ForwardIVP):
     def res_and_w(self, params, batch):
         # Sort temporal coordinates
         t_sorted = batch[:, 0].sort()
-        continuity_pred, x_momentum_pred, y_momentum_pred, k_transport_pred,
-        omega_transport_pred, _, _, _, _ = self.r_pred_fn(
-            params, t_sorted, batch[:, 1], batch[:, 2]
-        )
+        continuity_pred, x_momentum_pred, y_momentum_pred, k_transport_pred,\
+        omega_transport_pred, _, _, _, _ = self.r_pred_fn(\
+            params, t_sorted, batch[:, 1], batch[:, 2])
 
         continuity_pred = continuity_pred.reshape(self.num_chunks, -1)
         x_momentum_pred = x_momentum_pred.reshape(self.num_chunks, -1)
@@ -271,6 +292,7 @@ class NavierStokes2D(ForwardIVP):
         x_momentum_l = jnp.mean(x_momentum_pred**2, axis=1)
         y_momentum_l = jnp.mean(y_momentum_pred**2, axis=1)
         k_transport_l = jnp.mean(k_transport_pred**2, axis=1)
+        omega_transport_l = jnp.mean(omega_transport_pred**2, axis=1)
 
         continuity_gamma = lax.stop_gradient(jnp.exp(-self.tol * (self.M @ continuity_l)))
         x_momentum_gamma = lax.stop_gradient(jnp.exp(-self.tol * (self.M @ x_momentum_l)))
@@ -283,7 +305,7 @@ class NavierStokes2D(ForwardIVP):
         y_momentum_gamma, k_transport_gamma, omega_transport_gamma])
         gamma = gamma.min(0)
 
-        return continuity_l, x_momentum_l, y_momentum_l, k_transport_l,
+        return continuity_l, x_momentum_l, y_momentum_l, k_transport_l,\
         omega_transport_l, gamma
 
     @partial(jit, static_argnums=(0,))
@@ -519,7 +541,7 @@ class NavierStokes2D(ForwardIVP):
 
         # residual loss
         if self.config.weighting.use_causal == True:
-            continuity_l, x_momentum_l, y_momentum_l, k_transport_l,
+            continuity_l, x_momentum_l, y_momentum_l, k_transport_l,\
             omega_transport_l, gamma = self.res_and_w(params, res_batch)
             continuity_loss = jnp.mean(gamma * continuity_l)
             x_momentum_loss = jnp.mean(gamma * x_momentum_l)
@@ -529,9 +551,8 @@ class NavierStokes2D(ForwardIVP):
 
         else:
             continuity_pred, x_momentum_pred, y_momentum_pred,
-            k_transport_pred, omega_transport_pred, _, _, _, _ = self.r_pred_fn(
-                params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
-            )
+            k_transport_pred, omega_transport_pred, _, _, _, _ = self.r_pred_fn(\
+                params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2])
             continuity_loss = jnp.mean(continuity_pred**2)
             x_momentum_loss = jnp.mean(x_momentum_pred**2)
             y_momentum_loss = jnp.mean(y_momentum_pred**2)
