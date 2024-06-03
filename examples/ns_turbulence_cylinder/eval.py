@@ -21,7 +21,7 @@ import models
 
 from jaxpi.utils import restore_checkpoint
 
-from utils import get_dataset, parabolic_inflow
+from utils import get_dataset#, parabolic_inflow
 
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
