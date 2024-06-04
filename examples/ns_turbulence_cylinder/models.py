@@ -43,13 +43,12 @@ class NavierStokes2D(ForwardIVP):
         self.u_pred_fn = vmap(self.u_net, (None, 0, 0, 0))
         self.v_pred_fn = vmap(self.v_net, (None, 0, 0, 0))
         self.p_pred_fn = vmap(self.p_net, (None, 0, 0, 0))
-        self.k_pred_fn = vmap(self.p_net, (None, 0, 0, 0))
-        self.omega_pred_fn = vmap(self.p_net, (None, 0, 0, 0))
-        self.w_pred_fn = vmap(self.w_net, (None, 0, 0, 0))
+        self.k_pred_fn = vmap(self.k_net, (None, 0, 0, 0))
+        self.omega_pred_fn = vmap(self.omega_net, (None, 0, 0, 0))
+        self.w_pred_fn = vmap(self.w_net, (None, 0, 0, 0)) #unused
         self.r_pred_fn = vmap(self.r_net, (None, 0, 0, 0))
 
     def neural_net(self, params, t, x, y):
-        print('neural_net')
         t = t / self.temporal_dom[1]  # rescale t into [0, 1]
         x = x / self.L  # rescale x into [0, 1]
         y = y / self.W  # rescale y into [0, 1]
@@ -66,32 +65,26 @@ class NavierStokes2D(ForwardIVP):
         return u, v, p, k, omega
 
     def u_net(self, params, t, x, y):
-        print('----u_net')
         u, _, _, _, _ = self.neural_net(params, t, x, y)
         return u
 
     def v_net(self, params, t, x, y):
-        print('----v_net')
         _, v, _, _, _ = self.neural_net(params, t, x, y)
         return v
 
     def p_net(self, params, t, x, y):
-        print('----p_net')
         _, _, p, _, _ = self.neural_net(params, t, x, y)
         return p
 
     def k_net(self, params, t, x, y):
-        print('----k_net')
         _, _, _, k, _ = self.neural_net(params, t, x, y)
         return k
 
     def omega_net(self, params, t, x, y):
-        print('omega_net')
         _, _, _, _, omega = self.neural_net(params, t, x, y)
         return omega
 
     def w_net(self, params, t, x, y):
-        print('----w_net')
         u, v, _ = self.neural_net(params, t, x, y)
         u_y = grad(self.u_net, argnums=3)(params, t, x, y)
         v_x = grad(self.v_net, argnums=2)(params, t, x, y)
@@ -99,7 +92,6 @@ class NavierStokes2D(ForwardIVP):
         return w
 
     def r_net(self, params, t, x, y):
-        print('----r_net')
         u, v, p, k, omega = self.neural_net(params, t, x, y)
 
         u_t = grad(self.u_net, argnums=1)(params, t, x, y)
@@ -153,7 +145,6 @@ class NavierStokes2D(ForwardIVP):
         U_star = 9.0 #[m/s] velocity
         L_star = 80.0 #[m] diameter
         Re = rho * U_star * L_star / mu
-        print("---------------------Re---------------------", Re)
         # function to calcualte y_hat which is distance_from_wall/L_star
         y_hat = jnp.sqrt(x**2+y**2)-40/L_star #non-dim(distance) - radius/L_star
         D_omega_plus = jnp.maximum((2 / (sigma_omega2 * omega)) * (k_x * omega_x + k_y * omega_y), 10**-10)
