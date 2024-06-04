@@ -25,7 +25,7 @@ from jaxpi.samplers import BaseSampler, SpaceSampler, TimeSpaceSampler
 from jaxpi.logging import Logger
 from jaxpi.utils import save_checkpoint
 
-from utils import get_dataset, get_fine_mesh#, parabolic_inflow
+from utils import get_dataset, get_fine_mesh, calculate_range_and_divergence#, parabolic_inflow
 
 
 class ICSampler(SpaceSampler):
@@ -217,17 +217,27 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         k_ref = k_ref / U_star**2
         omega_ref = omega_ref * L_star / U_star
 
+        # inspect the reference data
+        variables = {
+            'u_ref': u_ref,
+            'v_ref': v_ref,
+            'p_ref': p_ref,
+            'k_ref': k_ref,
+            'omega_ref': omega_ref,
+        }
+        for name, var in variables.items():
+            calculate_range_and_divergence(var, name)
+
+
     else:
-        U_star = 1.0
-        L_star = 1.0
-        T_star = 1.0
-        Re = 1 / nu
+        print('dimensional analysis is not implemented')
+        return(-1)
 
     # Temporal domain of each time window
-    t0 = 0.0
-    t1 = 100.0 #what is it?
+    t0 = 1
+    t1 = 100
 
-    temporal_dom = jnp.array([t0, t1 * (1 + 0.05)])
+    temporal_dom = jnp.array([t0, t1])
 
     # Inflow boundary conditions
     U_constant = 9.0 #m/s
@@ -241,11 +251,23 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
     k0 = k_ref[-1, :]
     omega0 = omega_ref[-1, :]
 
+    # inspect the initial data
+    variables0 = {
+        'u0': u0,
+        'v0': v0,
+        'p0': p0,
+        'k0': k0,
+        'omega_0': omega0,
+    }
+    for name, var in variables0.items():
+        calculate_range_and_divergence(var, name)
+
     for idx in range(config.training.num_time_windows):
         logging.info("Training time window {}".format(idx + 1))
+        print('idx:',idx)
 
         # Initialize Sampler
-        keys = random.split(random.PRNGKey(0), 5)
+        keys = random.split(random.PRNGKey(0), 6)
         ic_sampler = iter(
             ICSampler(
                 u0, v0, p0, k0, omega0, coords, config.training.ic_batch_size, rng_key=keys[0]

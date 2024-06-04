@@ -12,6 +12,7 @@ from jaxpi.models import ForwardBVP, ForwardIVP
 from jaxpi.utils import ntk_fn
 from jaxpi.evaluator import BaseEvaluator
 
+
 class NavierStokes2D(ForwardIVP):
     def __init__(self, config, inflow_fn, temporal_dom, coords, Re):
         print('NavierStokes2D init')
@@ -29,8 +30,8 @@ class NavierStokes2D(ForwardIVP):
             self.U_star = 9.0 #me
             self.L_star = 80.0 #me
         else:
-            self.U_star = 1.0
-            self.L_star = 1.0
+          print('no implemented 15892')
+          return(-1)
 
         # Predict functions over batch
         self.u0_pred_fn = vmap(self.u_net, (None, None, 0, 0))
