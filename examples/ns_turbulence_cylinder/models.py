@@ -60,8 +60,8 @@ class NavierStokes2D(ForwardIVP):
         u = outputs[0] + self.U_star
         v = outputs[1]
         p = outputs[2]
-        k = outputs[2]
-        omega = outputs[2]
+        k = outputs[3]
+        omega = outputs[4]
         return u, v, p, k, omega
 
     def u_net(self, params, t, x, y):

@@ -264,10 +264,11 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
     for idx in range(config.training.num_time_windows):
         logging.info("Training time window {}".format(idx + 1))
+        print('-------------------------------------')
         print('idx:',idx)
 
         # Initialize Sampler
-        keys = random.split(random.PRNGKey(0), 6)
+        keys = random.split(random.PRNGKey(0), 5)
         ic_sampler = iter(
             ICSampler(
                 u0, v0, p0, k0, omega0, coords, config.training.ic_batch_size, rng_key=keys[0]
