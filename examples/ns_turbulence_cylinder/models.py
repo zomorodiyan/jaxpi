@@ -1,5 +1,6 @@
 from functools import partial
 
+from absl import logging
 import jax
 import jax.numpy as jnp
 from jax import lax, jit, grad, vmap
@@ -333,7 +334,7 @@ class NavierStokes2D(ForwardIVP):
         k_ic_ntk = vmap(ntk_fn, (None, None, None, 0, 0))(
             self.k_net, params, 0.0, coords_batch[:, 0], coords_batch[:, 1]
         )
-        w_ic_ntk = vmap(ntk_fn, (None, None, None, 0, 0))(
+        omega_ic_ntk = vmap(ntk_fn, (None, None, None, 0, 0))(
             self.omega_net, params, 0.0, coords_batch[:, 0], coords_batch[:, 1]
         )
 
@@ -412,10 +413,10 @@ class NavierStokes2D(ForwardIVP):
                 self.y_momentum_net, params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
             )
             k_transport_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
-                self.k_momentum_net, params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
+                self.k_transport_net, params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
             )
             omega_transport_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
-                self.omega_momentum_net, params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
+                self.omega_transport_net, params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2]
             )
 
             continuity_ntk = continuity_ntk.reshape(self.num_chunks, -1)  # shape: (num_chunks, -1)
