@@ -12,26 +12,9 @@ from jaxpi.models import ForwardBVP, ForwardIVP
 from jaxpi.utils import ntk_fn
 from jaxpi.evaluator import BaseEvaluator
 
-def check_for_nans(tensor, name):
-    has_nan = jnp.isnan(tensor).any()
-    has_inf = jnp.isinf(tensor).any()
-
-    def print_nan_info(x):
-        jax.debug.print(f"Nan values found in {name}")
-        return x
-
-    def print_inf_info(x):
-        jax.debug.print(f"Inf values found in {name}")
-        return x
-
-    # Using lax.cond to conditionally print the message if nan or inf is found
-    has_nan = jax.lax.cond(has_nan, print_nan_info, lambda x: x, has_nan)
-    has_inf = jax.lax.cond(has_inf, print_inf_info, lambda x: x, has_inf)
-
-    return has_nan, has_inf
-
 class NavierStokes2D(ForwardIVP):
     def __init__(self, config, inflow_fn, temporal_dom, coords, Re):
+        print('NavierStokes2D init')
         super().__init__(config)
 
         self.inflow_fn = inflow_fn
@@ -65,15 +48,16 @@ class NavierStokes2D(ForwardIVP):
         self.r_pred_fn = vmap(self.r_net, (None, 0, 0, 0))
 
     def neural_net(self, params, t, x, y):
+        print('neural_net')
         t = t / self.temporal_dom[1]  # rescale t into [0, 1]
         x = x / self.L  # rescale x into [0, 1]
         y = y / self.W  # rescale y into [0, 1]
         inputs = jnp.stack([t, x, y])
         outputs = self.state.apply_fn(params, inputs)
 
-        # Start with an initial state of the channel flow
-        y_hat = y * self.L_star * self.W
-        u = outputs[0] + 4 * 1.5 * y_hat * (0.41 - y_hat) / (0.41**2)
+        # Start with an initial state of a free stream (constant velocity) flow
+        u_const = self.U_star
+        u = outputs[0] + self.U_star
         v = outputs[1]
         p = outputs[2]
         k = outputs[2]
@@ -81,26 +65,32 @@ class NavierStokes2D(ForwardIVP):
         return u, v, p, k, omega
 
     def u_net(self, params, t, x, y):
+        print('----u_net')
         u, _, _, _, _ = self.neural_net(params, t, x, y)
         return u
 
     def v_net(self, params, t, x, y):
+        print('----v_net')
         _, v, _, _, _ = self.neural_net(params, t, x, y)
         return v
 
     def p_net(self, params, t, x, y):
+        print('----p_net')
         _, _, p, _, _ = self.neural_net(params, t, x, y)
         return p
 
     def k_net(self, params, t, x, y):
+        print('----k_net')
         _, _, _, k, _ = self.neural_net(params, t, x, y)
         return k
 
     def omega_net(self, params, t, x, y):
+        print('omega_net')
         _, _, _, _, omega = self.neural_net(params, t, x, y)
         return omega
 
     def w_net(self, params, t, x, y):
+        print('----w_net')
         u, v, _ = self.neural_net(params, t, x, y)
         u_y = grad(self.u_net, argnums=3)(params, t, x, y)
         v_x = grad(self.v_net, argnums=2)(params, t, x, y)
@@ -108,16 +98,13 @@ class NavierStokes2D(ForwardIVP):
         return w
 
     def r_net(self, params, t, x, y):
+        print('----r_net')
         u, v, p, k, omega = self.neural_net(params, t, x, y)
 
         u_t = grad(self.u_net, argnums=1)(params, t, x, y)
-        check_for_nans(u_t, "u_t")
         v_t = grad(self.v_net, argnums=1)(params, t, x, y)
-        check_for_nans(v_t, "v_t")
         k_t = grad(self.k_net, argnums=1)(params, t, x, y)
-        check_for_nans(k_t, "k_t")
         omega_t = grad(self.omega_net, argnums=1)(params, t, x, y)
-        check_for_nans(omega_t, "omega_t")
 
         u_x = grad(self.u_net, argnums=2)(params, t, x, y)
         v_x = grad(self.v_net, argnums=2)(params, t, x, y)
@@ -165,6 +152,7 @@ class NavierStokes2D(ForwardIVP):
         U_star = 9.0 #[m/s] velocity
         L_star = 80.0 #[m] diameter
         Re = rho * U_star * L_star / mu
+        print("---------------------Re---------------------", Re)
         # function to calcualte y_hat which is distance_from_wall/L_star
         y_hat = jnp.sqrt(x**2+y**2)-40/L_star #non-dim(distance) - radius/L_star
         D_omega_plus = jnp.maximum((2 / (sigma_omega2 * omega)) * (k_x * omega_x + k_y * omega_y), 10**-10)
@@ -251,49 +239,49 @@ class NavierStokes2D(ForwardIVP):
           u_out, v_out, u_symmetry, v_symmetry
 
     def continuity_net(self, params, t, x, y):
+        print('continuity_net')
         continuity, _, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
         return continuity
 
     def x_momentum_net(self, params, t, x, y):
+        print('x_momentum_net')
         _, x_momentum, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
         return x_momentum
 
     def y_momentum_net(self, params, t, x, y):
+        print('y_momentum_net')
         _, _, y_momentum, _, _, _, _, _ ,_ = self.r_net(params, t, x, y)
-        return x_momentum
+        return y_momentum
 
     def k_transport_net(self, params, t, x, y):
+        print('k_transport_net')
         _, _, _, k_transport, _, _, _, _ ,_ = self.r_net(params, t, x, y)
         return k_transport
 
     def omega_transport_net(self, params, t, x, y):
+        print('omega_transport_net')
         _, _, _, _, omega_transport,_ , _ ,_ ,_ = self.r_net(params, t, x, y)
         return omega_transport
 
     def u_out_net(self, params, t, x, y):
+        print('-u_out_net')
         _, _, _, _, _,u_out,_ ,_ ,_ = self.r_net(params, t, x, y)
         return u_out
 
     def v_out_net(self, params, t, x, y):
+        print('-v_out_net')
         _, _, _, _, _, _,v_out,_ ,_ = self.r_net(params, t, x, y)
         return v_out
 
-    def u_symm_net(self, params, t, x, y):
-        _, _, _, _, _, _, _, u_symm, _ = self.r_net(params, t, x, y)
-        return u_symm
+    def u_symmetry_net(self, params, t, x, y):
+        print('u_symmetry_net')
+        _, _, _, _, _, _, _, u_symmetry, _ = self.r_net(params, t, x, y)
+        return u_symmetry
 
-    def v_symm_net(self, params, t, x, y):
-        _, _, _, _, _, _, _, _, v_symm = self.r_net(params, t, x, y)
-        return v_symm
-
-    def v_symm_net(self, params, t, x, y):
-        _, _, _, _, _, _, _, _, v_symm = self.r_net(params, t, x, y)
-        return v_symm
-
-    def v_symm_net(self, params, t, x, y):
-        _, _, _, _, _, _, _, _, v_symm = self.r_net(params, t, x, y)
-        return v_symm
-
+    def v_symmetry_net(self, params, t, x, y):
+        print('v_symmetry_net')
+        _, _, _, _, _, _, _, _, v_symmetry = self.r_net(params, t, x, y)
+        return v_symmetry
 
     @partial(jit, static_argnums=(0,))
     def res_and_w(self, params, batch):

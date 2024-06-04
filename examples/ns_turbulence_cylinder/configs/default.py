@@ -44,20 +44,26 @@ def get_config():
 
     # Training
     config.training = training = ml_collections.ConfigDict()
-    training.max_steps = 200000
-    training.num_time_windows = 10
+    training.max_steps = 20000
+    training.num_time_windows = 1
 
     #training.inflow_batch_size = 2048 #old
     #training.outflow_batch_size = 2048 #old
     #training.noslip_batch_size = 2048 #old
     #training.ic_batch_size = 2048 #old
     #training.res_batch_size = 4096 #old
-    training.inflow_batch_size = 512
-    training.outflow_batch_size = 512
-    training.noslip_batch_size = 512
-    training.ic_batch_size = 512
-    training.symmetry_batch_size = 512 #me
-    training.res_batch_size = 1024
+    #  training.inflow_batch_size = 512
+    #  training.outflow_batch_size = 512
+    #  training.noslip_batch_size = 512
+    #  training.ic_batch_size = 512
+    #  training.symmetry_batch_size = 512 #me
+    #  training.res_batch_size = 1024
+    training.inflow_batch_size = 32
+    training.outflow_batch_size = 32
+    training.noslip_batch_size = 32
+    training.ic_batch_size = 32
+    training.symmetry_batch_size = 32 #me
+    training.res_batch_size = 64
 
     # Weighting
     config.weighting = weighting = ml_collections.ConfigDict()
@@ -84,7 +90,7 @@ def get_config():
     }
 
     weighting.momentum = 0.9
-    weighting.update_every_steps = 1000  # 100 for grad norm and 1000 for ntk
+    weighting.update_every_steps = 1#1000  # 100 for grad norm and 1000 for ntk
 
     weighting.use_causal = True
     weighting.causal_tol = 1.0
@@ -92,7 +98,7 @@ def get_config():
 
     # Logging
     config.logging = logging = ml_collections.ConfigDict()
-    logging.log_every_steps = 100
+    logging.log_every_steps = 1
     logging.log_errors = True
     logging.log_losses = True
     logging.log_weights = True
@@ -102,7 +108,7 @@ def get_config():
 
     # Saving
     config.saving = saving = ml_collections.ConfigDict()
-    saving.save_every_steps = 10000
+    saving.save_every_steps = 1000
     saving.num_keep_ckpts = 10
 
     # Input shape for initializing Flax models

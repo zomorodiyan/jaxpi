@@ -41,6 +41,7 @@ class ICSampler(SpaceSampler):
     @partial(pmap, static_broadcasted_argnums=(0,))
     def data_generation(self, key):
         "Generates data containing batch_size samples"
+        print('data generation')
         idx = random.choice(key, self.coords.shape[0], shape=(self.batch_size,))
 
         coords_batch = self.coords[idx, :]

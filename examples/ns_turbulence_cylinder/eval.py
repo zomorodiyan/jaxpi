@@ -35,7 +35,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
         p_ref,
         k_ref,
         omega_ref,
-        conc_ref,
         coords,
         inflow_coords,
         outflow_coords,
@@ -97,7 +96,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
     p_pred_fn = jit(vmap(vmap(model.p_net, (None, None, 0, 0)), (None, 0, None, None)))
     k_pred_fn = jit(vmap(vmap(model.p_net, (None, None, 0, 0)), (None, 0, None, None)))
     omega_pred_fn = jit(vmap(vmap(model.p_net, (None, None, 0, 0)), (None, 0, None, None)))
-    #conc_pred_fn = jit(vmap(vmap(model.p_net, (None, None, 0, 0)), (None, 0, None, None)))
     w_pred_fn = jit(vmap(vmap(model.w_net, (None, None, 0, 0)), (None, 0, None, None)))
 
     t_coords = jnp.linspace(0, t1, 20)[:-1]
@@ -107,7 +105,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
     p_pred_list = []
     k_pred_list = []
     omega_pred_list = []
-    #conc_pred_list = []
     w_pred_list = []
     U_pred_list = []
 
@@ -123,7 +120,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
         p_pred = p_pred_fn(params, t_coords, coords[:, 0], coords[:, 1])
         k_pred = k_pred_fn(params, t_coords, coords[:, 0], coords[:, 1])
         omeag_pred = omega_pred_fn(params, t_coords, coords[:, 0], coords[:, 1])
-        #conc_pred = conc_pred_fn(params, t_coords, coords[:, 0], coords[:, 1])
 
         u_pred_list.append(u_pred)
         v_pred_list.append(v_pred)
@@ -131,7 +127,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
         p_pred_list.append(p_pred)
         k_pred_list.append(k_pred)
         omega_pred_list.append(omega_pred)
-        #conc_pred_list.append(conc_pred)
 
     u_pred = jnp.concatenate(u_pred_list, axis=0)
     v_pred = jnp.concatenate(v_pred_list, axis=0)
@@ -139,7 +134,6 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
     w_pred = jnp.concatenate(w_pred_list, axis=0)
     k_pred = jnp.concatenate(k_pred_list, axis=0)
     omega_pred = jnp.concatenate(omega_pred_list, axis=0)
-    #conc_pred = jnp.concatenate(conc_pred_list, axis=0)
 
     # Dimensionalize coordinates and flow field
     if config.nondim == True:
