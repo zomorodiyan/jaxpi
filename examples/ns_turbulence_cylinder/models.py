@@ -679,15 +679,15 @@ class NavierStokesEvaluator(BaseEvaluator):
     def __init__(self, config, model):
         super().__init__(config, model)
 
-    # def log_preds(self, params, x_star, y_star):
-    #     u_pred = vmap(vmap(model.u_net, (None, None, 0)), (None, 0, None))(params, x_star, y_star)
-    #     v_pred = vmap(vmap(model.v_net, (None, None, 0)), (None, 0, None))(params, x_star, y_star)
-    #     U_pred = jnp.sqrt(u_pred ** 2 + v_pred ** 2)
-    #
-    #     fig = plt.figure()
-    #     plt.pcolor(U_pred.T, cmap='jet')
-    #     log_dict['U_pred'] = fig
-    #     fig.close()
+    def log_preds(self, params, x_star, y_star):
+        u_pred = vmap(vmap(model.u_net, (None, None, 0)), (None, 0, None))(params, x_star, y_star)
+        v_pred = vmap(vmap(model.v_net, (None, None, 0)), (None, 0, None))(params, x_star, y_star)
+        U_pred = jnp.sqrt(u_pred ** 2 + v_pred ** 2)
+
+        fig = plt.figure()
+        plt.pcolor(U_pred.T, cmap='jet')
+        log_dict['U_pred'] = fig
+        fig.close()
 
     def __call__(self, state, batch):
         self.log_dict = super().__call__(state, batch)
@@ -696,10 +696,10 @@ class NavierStokesEvaluator(BaseEvaluator):
             _, _, _, _, _, causal_weight = self.model.res_and_w(state.params, batch["res"])
             self.log_dict["cas_weight"] = causal_weight.min()
 
-        # if self.config.logging.log_errors:
-        #     self.log_errors(state.params, coords, u_ref, v_ref)
-        #
-        # if self.config.logging.log_preds:
-        #     self.log_preds(state.params, coords)
+        if self.config.logging.log_errors:
+            self.log_errors(state.params, coords, u_ref, v_ref)
+
+        if self.config.logging.log_preds:
+            self.log_preds(state.params, coords)
 
         return self.log_dict
