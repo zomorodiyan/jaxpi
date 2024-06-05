@@ -31,7 +31,7 @@ def get_dataset():
     p_ref = jnp.array(data["p"].astype(float))
     k_ref = jnp.array(data["k"].astype(float)) #me
     omega_ref = jnp.array(data["omega"].astype(float)) #me
-    t = jnp.array(data["t"])
+    #t = jnp.array(data["t"])
     coords = jnp.array(data["coords"])
     inflow_coords = jnp.array(data["inflow_coords"].astype(float))
     outflow_coords = jnp.array(data["outflow_coords"].astype(float))

@@ -8,7 +8,7 @@ from flax.training import checkpoints
 
 import jax
 import jax.numpy as jnp
-from jax import random, jit, vmap, pmap
+from jax import random, jit, vmap#, pmap
 from jax.tree_util import tree_map
 
 import scipy.io
@@ -167,22 +167,34 @@ def evaluate(config: ml_collections.ConfigDict, workdir: str):
         os.makedirs(save_dir)
 
     fig1 = plt.figure(figsize=(18, 12))
-    plt.subplot(3, 1, 1)
+    plt.subplot(3, 2, 1)
     plt.tricontourf(triang, u_pred[-1], cmap='jet', levels=100)
     plt.colorbar()
     plt.title('Predicted $u$')
     plt.tight_layout()
 
-    plt.subplot(3, 1, 2)
+    plt.subplot(3, 2, 2)
     plt.tricontourf(triang, v_pred[-1], cmap='jet', levels=100)
     plt.colorbar()
     plt.title('Predicted $v$')
     plt.tight_layout()
 
-    plt.subplot(3, 1, 3)
+    plt.subplot(3, 2, 3)
     plt.tricontourf(triang, p_pred[-1], cmap='jet', levels=100)
     plt.colorbar()
     plt.title('Predicted $p$')
+    plt.tight_layout()
+
+    plt.subplot(3, 2, 4)
+    plt.tricontourf(triang, k_pred[-1], cmap='jet', levels=100)
+    plt.colorbar()
+    plt.title('Predicted $k$')
+    plt.tight_layout()
+
+    plt.subplot(3, 2, 5)
+    plt.tricontourf(triang, omega_pred[-1], cmap='jet', levels=100)
+    plt.colorbar()
+    plt.title('Predicted $omega$')
     plt.tight_layout()
     plt.show()
 

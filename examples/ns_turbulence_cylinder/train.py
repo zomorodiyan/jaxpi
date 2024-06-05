@@ -8,7 +8,7 @@ from absl import logging
 import jax
 
 import jax.numpy as jnp
-from jax import random, vmap, pmap, local_device_count
+from jax import random, vmap, pmap, local_device_count, debug
 from jax.tree_util import tree_map
 
 import matplotlib.pyplot as plt
@@ -238,6 +238,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
     t1 = 100
 
     temporal_dom = jnp.array([t0, t1])
+
 
     # Inflow boundary conditions
     U_constant = 9.0 #m/s

@@ -23,8 +23,8 @@ def get_config():
     arch.arch_name = "ModifiedMlp"
     arch.num_layers = 4
     arch.hidden_dim = 256
-    arch.out_dim = 3
-    arch.activation = "gelu"  # gelu works better than tanh for this problem
+    arch.out_dim = 5
+    arch.activation = "tanh"  # gelu works better than tanh for this problem
     arch.periodicity = False
     arch.fourier_emb = ml_collections.ConfigDict({"embed_scale": 1.0, "embed_dim": 256})
     arch.reparam = ml_collections.ConfigDict(
@@ -44,7 +44,7 @@ def get_config():
 
     # Training
     config.training = training = ml_collections.ConfigDict()
-    training.max_steps = 20000
+    training.max_steps = 200000
     training.num_time_windows = 1
 
     #training.inflow_batch_size = 2048 #old
@@ -58,12 +58,12 @@ def get_config():
     #  training.ic_batch_size = 512
     #  training.symmetry_batch_size = 512 #me
     #  training.res_batch_size = 1024
-    training.inflow_batch_size = 32
-    training.outflow_batch_size = 32
-    training.noslip_batch_size = 32
-    training.ic_batch_size = 32
-    training.symmetry_batch_size = 32 #me
-    training.res_batch_size = 64
+    training.inflow_batch_size = 4
+    training.outflow_batch_size = 4
+    training.noslip_batch_size = 4
+    training.ic_batch_size = 4
+    training.symmetry_batch_size = 4 #me
+    training.res_batch_size = 8
 
     # Weighting
     config.weighting = weighting = ml_collections.ConfigDict()
@@ -90,7 +90,7 @@ def get_config():
     }
 
     weighting.momentum = 0.9
-    weighting.update_every_steps = 1#1000  # 100 for grad norm and 1000 for ntk
+    weighting.update_every_steps = 1000#1000  # 100 for grad norm and 1000 for ntk
 
     weighting.use_causal = True
     weighting.causal_tol = 1.0
@@ -102,9 +102,9 @@ def get_config():
     logging.log_errors = True
     logging.log_losses = True
     logging.log_weights = True
-    logging.log_grads = False
+    logging.log_grads = True
     logging.log_ntk = False
-    logging.log_preds = False
+    logging.log_preds = True
 
     # Saving
     config.saving = saving = ml_collections.ConfigDict()
