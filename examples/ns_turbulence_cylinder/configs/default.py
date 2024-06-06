@@ -76,12 +76,20 @@ def get_config():
         "omega_ic": 1.0,
         "u_in": 1.0,
         "v_in": 1.0,
+        "k_in": 1.0,
+        "omega_in": 1.0,
         "u_out": 1.0,
         "v_out": 1.0,
+        "k_out": 1.0,
+        "omega_out": 1.0,
         "u_noslip": 1.0,
         "v_noslip": 1.0,
+        "k_noslip": 1.0,
+        "omega_noslip": 1.0,
         "u_symmetry": 1.0,
         "v_symmetry": 1.0,
+        "k_symmetry": 1.0,
+        "omega_symmetry": 1.0,
         "continuity": 1.0,
         "x_momentum": 1.0,
         "y_momentum": 1.0,
@@ -102,7 +110,7 @@ def get_config():
     logging.log_errors = True
     logging.log_losses = True
     logging.log_weights = True
-    logging.log_grads = True
+    logging.log_grads = False
     logging.log_ntk = False
     logging.log_preds = True
 

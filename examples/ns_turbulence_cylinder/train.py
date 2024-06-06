@@ -194,7 +194,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
     if config.nondim == True:
         # Nondimensionalization parameters
         U_star = 9.0  # characteristic velocity #me
-        L_star = 80  # characteristic length #me
+        L_star = 80.0  # characteristic length #me
         T_star = L_star / U_star  # characteristic time
         Re = U_star * L_star / nu
 
@@ -234,11 +234,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         return(-1)
 
     # Temporal domain of each time window
-    t0 = 1
-    t1 = 100
+    t0 = 0
+    t1 = 1.0
 
     temporal_dom = jnp.array([t0, t1])
-
 
     # Inflow boundary conditions
     U_constant = 9.0 #m/s

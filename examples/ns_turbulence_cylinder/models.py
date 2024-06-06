@@ -45,9 +45,9 @@ class NavierStokes2D(ForwardIVP):
         self.u_pred_fn = vmap(self.u_net, (None, 0, 0, 0))
         self.v_pred_fn = vmap(self.v_net, (None, 0, 0, 0))
         self.p_pred_fn = vmap(self.p_net, (None, 0, 0, 0))
+        self.w_pred_fn = vmap(self.w_net, (None, 0, 0, 0))
         self.k_pred_fn = vmap(self.k_net, (None, 0, 0, 0))
         self.omega_pred_fn = vmap(self.omega_net, (None, 0, 0, 0))
-        self.w_pred_fn = vmap(self.w_net, (None, 0, 0, 0)) #unused
         self.r_pred_fn = vmap(self.r_net, (None, 0, 0, 0))
 
     def neural_net(self, params, t, x, y):
@@ -58,8 +58,7 @@ class NavierStokes2D(ForwardIVP):
         outputs = self.state.apply_fn(params, inputs)
 
         # Start with an initial state of a free stream (constant velocity) flow
-        u_const = self.U_star
-        u = outputs[0] + self.U_star
+        u = outputs[0] + 1.0 #U_in/U_star
         v = outputs[1]
         p = outputs[2]
         k = outputs[3]
@@ -98,8 +97,9 @@ class NavierStokes2D(ForwardIVP):
 
     def r_net(self, params, t, x, y):
         u, v, p, k, omega = self.neural_net(params, t, x, y)
+        #omega = 10
 
-        debug.print(" u,v,p,k,omega: {}, {}, {}, {}, {}", u,v,p,k,omega)
+        debug.print(" x,y,t,k,omega: {}, {}, {}, {}, {}", x,y,t,k,omega)
 
         u_t = grad(self.u_net, argnums=1)(params, t, x, y)
         v_t = grad(self.v_net, argnums=1)(params, t, x, y)
@@ -254,65 +254,82 @@ class NavierStokes2D(ForwardIVP):
         # outflow boundary residual
         u_out = u_x / self.Re - p
         v_out = v_x
-
-        # symmetry boundary residual
-        u_out = u_x / self.Re - p
-        v_out = v_x
-        # wall function for k and omega on walls is available (add feature)
+        k_out = k_x
+        omega_out = omega_x
 
         # symmetry boundary residual
         u_symmetry = u_y
         v_symmetry = v_y
-        #k_symmetry = k_y
-        #omega_symmetry = omega_y
+        k_symmetry = k_y
+        omega_symmetry = omega_y
 
         return continuity, x_momentum, y_momentum, k_transport, omega_transport,\
-          u_out, v_out, u_symmetry, v_symmetry
+          u_out, v_out, k_out, omega_out, u_symmetry, v_symmetry, k_symmetry, omega_symmetry
 
     def continuity_net(self, params, t, x, y):
         print('---------------------continuity_net---------------------')
-        continuity, _, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
+        continuity, _, _, _, _, _, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
         return continuity
 
     def x_momentum_net(self, params, t, x, y):
         print('---------------------x_momentum_net----------------------')
-        _, x_momentum, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
+        _, x_momentum, _, _, _, _, _, _, _, _, _, _, _ = self.r_net(params, t, x, y)
         return x_momentum
 
     def y_momentum_net(self, params, t, x, y):
         print('---------------------y_momentum_net----------------------')
-        _, _, y_momentum, _, _, _, _, _ ,_ = self.r_net(params, t, x, y)
+        _, _, y_momentum, _, _, _, _, _ ,_, _, _, _, _ = self.r_net(params, t, x, y)
         return y_momentum
 
     def k_transport_net(self, params, t, x, y):
         print('---------------------k_transport_net---------------------')
-        _, _, _, k_transport, _, _, _, _ ,_ = self.r_net(params, t, x, y)
+        _, _, _, k_transport, _, _, _, _ , _, _, _, _, _ = self.r_net(params, t, x, y)
         return k_transport
 
     def omega_transport_net(self, params, t, x, y):
         print('---------------------omega_transport_net-----------------')
-        _, _, _, _, omega_transport,_ , _ ,_ ,_ = self.r_net(params, t, x, y)
+        _, _, _, _, omega_transport,_ , _ ,_ , _, _, _, _, _ = self.r_net(params, t, x, y)
         return omega_transport
 
     def u_out_net(self, params, t, x, y):
         print('----------------------u_out_net--------------------------')
-        _, _, _, _, _,u_out,_ ,_ ,_ = self.r_net(params, t, x, y)
+        _, _, _, _, _,u_out,_ ,_ , _, _, _, _, _ = self.r_net(params, t, x, y)
         return u_out
 
     def v_out_net(self, params, t, x, y):
         print('----------------------v_out_net--------------------------')
-        _, _, _, _, _, _,v_out,_ ,_ = self.r_net(params, t, x, y)
+        _, _, _, _, _, _,v_out,_ , _, _, _, _, _ = self.r_net(params, t, x, y)
         return v_out
+
+    def k_out_net(self, params, t, x, y):
+        print('----------------------k_out_net--------------------------')
+        _, _, _, _, _, _, _, k_out, _, _, _, _, _ = self.r_net(params, t, x, y)
+        return k_out
+
+    def omega_out_net(self, params, t, x, y):
+        print('----------------------omega_out_net----------------------')
+        _, _, _, _, _, _, _, _, omega_out, _, _, _, _ = self.r_net(params, t, x, y)
+        return omega_out
 
     def u_symmetry_net(self, params, t, x, y):
         print('----------------------u_symmetry_net---------------------')
-        _, _, _, _, _, _, _, u_symmetry, _ = self.r_net(params, t, x, y)
+        _, _, _, _, _, _, _, _, _, u_symmetry, _, _, _ = self.r_net(params, t, x, y)
         return u_symmetry
 
     def v_symmetry_net(self, params, t, x, y):
         print('---------------------v_symmetry_net----------------------')
-        _, _, _, _, _, _, _, _, v_symmetry = self.r_net(params, t, x, y)
+        _, _, _, _, _, _, _, _, _, _, v_symmetry, _, _ = self.r_net(params, t, x, y)
         return v_symmetry
+
+    def k_symmetry_net(self, params, t, x, y):
+        print('---------------------k_symmetry_net----------------------')
+        _, _, _, _, _, _, _, _, _, _, _, k_symmetry, _ = self.r_net(params, t, x, y)
+        return k_symmetry
+
+    def omega_symmetry_net(self, params, t, x, y):
+        print('---------------------omega_symmetry_net------------------')
+        _, _, _, _, _, _, _, _, _, _, _, _, omega_symmetry = self.r_net(params, t, x, y)
+        return omega_symmetry
 
     @partial(jit, static_argnums=(0,))
     def res_and_w(self, params, batch):
@@ -324,7 +341,7 @@ class NavierStokes2D(ForwardIVP):
         debug.print("batch_shape: {}",batch.shape)
 
         continuity_pred, x_momentum_pred, y_momentum_pred, k_transport_pred,\
-        omega_transport_pred, _, _, _, _ = self.r_pred_fn(\
+        omega_transport_pred, _, _, _, _, _, _, _, _ = self.r_pred_fn(\
             params, t_sorted, batch[:, 1], batch[:, 2])
 
         continuity_pred = continuity_pred.reshape(self.num_chunks, -1)
@@ -408,6 +425,22 @@ class NavierStokes2D(ForwardIVP):
             inflow_batch[:, 2],
         )
 
+        k_in_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.k_net,
+            params,
+            inflow_batch[:, 0],
+            inflow_batch[:, 1],
+            inflow_batch[:, 2],
+        )
+
+        omega_in_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.omega_net,
+            params,
+            inflow_batch[:, 0],
+            inflow_batch[:, 1],
+            inflow_batch[:, 2],
+        )
+
         u_out_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
             self.u_out_net,
             params,
@@ -417,6 +450,20 @@ class NavierStokes2D(ForwardIVP):
         )
         v_out_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
             self.v_out_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
+        )
+        k_out_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.k_out_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
+        )
+        omega_out_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.omega_out_net,
             params,
             outflow_batch[:, 0],
             outflow_batch[:, 1],
@@ -453,6 +500,21 @@ class NavierStokes2D(ForwardIVP):
             outflow_batch[:, 2],
         )
 
+        k_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.k_symmetry_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
+        )
+
+        omega_symmetry_ntk = vmap(ntk_fn, (None, None, 0, 0, 0))(
+            self.omega_symmetry_net,
+            params,
+            outflow_batch[:, 0],
+            outflow_batch[:, 1],
+            outflow_batch[:, 2],
+        )
         # Consider the effect of causal weights
         if self.config.weighting.use_causal:
             res_batch = jnp.array(
@@ -518,19 +580,26 @@ class NavierStokes2D(ForwardIVP):
             "omega_ic": omega_ic_ntk,
             "u_in": u_in_ntk,
             "v_in": v_in_ntk,
+            "k_in": k_in_ntk,
+            "omega_in": omega_in_ntk,
             "u_out": u_out_ntk,
             "v_out": v_out_ntk,
+            "k_out": k_out_ntk,
+            "omega_out": omega_out_ntk,
             "u_noslip": u_noslip_ntk,
             "v_noslip": v_noslip_ntk,
+            "k_noslip": k_noslip_ntk,
+            "omega_noslip": omega_noslip_ntk,
             "u_symmetry": u_symmetry_ntk,
             "v_symmetry": v_symmetry_ntk,
+            "k_symmetry": k_symmetry_ntk,
+            "omega_symmetry": omega_symmetry_ntk,
             "continuity": continuity_ntk,
             "x_momentum": x_momentum_ntk,
             "y_momentum": y_momentum_ntk,
             "k_transport": k_transport_ntk,
             "omega_transport": omega_transport_ntk,
         }
-
         return ntk_dict
 
     @partial(jit, static_argnums=(0,))
@@ -559,25 +628,34 @@ class NavierStokes2D(ForwardIVP):
         omega_ic_loss = jnp.mean((omega_ic_pred - omega_batch) ** 2)
 
         # inflow loss
-        u_in, _ = self.inflow_fn(inflow_batch[:, 2])
-
         u_in_pred = self.u_pred_fn(
             params, inflow_batch[:, 0], inflow_batch[:, 1], inflow_batch[:, 2]
         )
         v_in_pred = self.v_pred_fn(
             params, inflow_batch[:, 0], inflow_batch[:, 1], inflow_batch[:, 2]
         )
+        k_in_pred = self.k_pred_fn(
+            params, inflow_batch[:, 0], inflow_batch[:, 1], inflow_batch[:, 2]
+        )
+        omega_in_pred = self.omega_pred_fn(
+            params, inflow_batch[:, 0], inflow_batch[:, 1], inflow_batch[:, 2]
+        )
 
-        u_in_loss = jnp.mean((u_in_pred - u_in) ** 2)
+        u_in_loss = jnp.mean((u_in_pred - 1.0) ** 2) # 1.0 = U_star/U_star
         v_in_loss = jnp.mean(v_in_pred**2)
+        k_in_loss = jnp.mean((k_in_pred - 3/2*(9.0*0.05)**2)**2)
+        omega_in_loss = jnp.mean((omega_in_pred-jnp.sqrt(k_in_pred)/0.09**0.25/80)**2)
 
         # outflow loss
-        _, _, _, _, _, u_out_pred, v_out_pred, _, _ = self.r_pred_fn(
-            params, outflow_batch[:, 0], outflow_batch[:, 1], outflow_batch[:, 2]
+        _, _, _, _, _, u_out_pred, v_out_pred, k_out_pred, omega_out_pred, _, _, _, _ = \
+            self.r_pred_fn(params, outflow_batch[:, 0],\
+                           outflow_batch[:, 1], outflow_batch[:, 2]
         )
 
         u_out_loss = jnp.mean(u_out_pred**2)
         v_out_loss = jnp.mean(v_out_pred**2)
+        k_out_loss = jnp.mean(k_out_pred**2)
+        omega_out_loss = jnp.mean(omega_out_pred**2)
 
         # noslip loss
         u_noslip_pred = self.u_pred_fn(
@@ -587,16 +665,29 @@ class NavierStokes2D(ForwardIVP):
             params, noslip_batch[:, 0], noslip_batch[:, 1], noslip_batch[:, 2]
         )
 
+        k_noslip_pred = self.k_pred_fn(
+            params, noslip_batch[:, 0], noslip_batch[:, 1], noslip_batch[:, 2]
+        )
+
+        omega_noslip_pred = self.omega_pred_fn(
+            params, noslip_batch[:, 0], noslip_batch[:, 1], noslip_batch[:, 2]
+        )
+
         u_noslip_loss = jnp.mean(u_noslip_pred**2)
         v_noslip_loss = jnp.mean(v_noslip_pred**2)
+        k_noslip_loss = jnp.mean(k_noslip_pred**2)
+        omega_noslip_loss = jnp.mean(omega_noslip_pred**2-30.0) #
 
         # symmetry loss
-        _, _, _, _, _, _, _, u_symmetry_pred, v_symmetry_pred = self.r_pred_fn(
-            params, outflow_batch[:, 0], outflow_batch[:, 1], outflow_batch[:, 2]
+        _, _, _, _, _, _, _, _, _, u_symmetry_pred, v_symmetry_pred,\
+            k_symmetry_pred, omega_symmetry_pred = self.r_pred_fn(
+            params, symmetry_batch[:, 0], symmetry_batch[:, 1], symmetry_batch[:, 2]
         )
 
         u_symmetry_loss = jnp.mean(u_symmetry_pred**2)
         v_symmetry_loss = jnp.mean(v_symmetry_pred**2)
+        k_symmetry_loss = jnp.mean(k_symmetry_pred**2)
+        omega_symmetry_loss = jnp.mean(omega_symmetry_pred**2)
 
         # residual loss
         if self.config.weighting.use_causal == True:
@@ -610,7 +701,8 @@ class NavierStokes2D(ForwardIVP):
 
         else:
             continuity_pred, x_momentum_pred, y_momentum_pred,
-            k_transport_pred, omega_transport_pred, _, _, _, _ = self.r_pred_fn(\
+            k_transport_pred, omega_transport_pred, _, _, _, _, _, _, _, _\
+              = self.r_pred_fn(\
                 params, res_batch[:, 0], res_batch[:, 1], res_batch[:, 2])
             continuity_loss = jnp.mean(continuity_pred**2)
             x_momentum_loss = jnp.mean(x_momentum_pred**2)
@@ -626,12 +718,20 @@ class NavierStokes2D(ForwardIVP):
             "omega_ic": omega_ic_loss,
             "u_in": u_in_loss,
             "v_in": v_in_loss,
+            "k_in": k_in_loss,
+            "omega_in": omega_in_loss,
             "u_out": u_out_loss,
             "v_out": v_out_loss,
+            "k_out": k_out_loss,
+            "omega_out": omega_out_loss,
             "u_noslip": u_noslip_loss,
             "v_noslip": v_noslip_loss,
+            "k_noslip": k_noslip_loss,
+            "omega_noslip": omega_noslip_loss,
             "u_symmetry": u_symmetry_loss,
             "v_symmetry": v_symmetry_loss,
+            "k_symmetry": k_symmetry_loss,
+            "omega_symmetry": omega_symmetry_loss,
             "continuity": continuity_loss,
             "x_momentum": x_momentum_loss,
             "y_momentum": y_momentum_loss,
