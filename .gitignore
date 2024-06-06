@@ -1,5 +1,5 @@
 __pycache__
 wandb
-examples/ns_turbulence_cylinder/data/fine_mesh_near_cylinder.npy
-examples/ns_turbulence_cylinder/data/fine_mesh.npy
-examples/ns_turbulence_cylinder/data/ns_unsteady.npy
+#examples/ns_turbulence_cylinder/data/fine_mesh_near_cylinder.npy
+#examples/ns_turbulence_cylinder/data/fine_mesh.npy
+#examples/ns_turbulence_cylinder/data/ns_unsteady.npy
